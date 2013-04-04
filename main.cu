@@ -48,7 +48,7 @@ void WrapperCUDA_pixME(byte *ImgSrc, byte *ImgDst, int Stride, ROI Size)
         
 
 	//execute CUDA kernel 
-	CUDAkernel_Laplacian<<< grid, threads >>>(Src,Dst, (int) DstStride);
+	CUDAkernel_Laplacian<<< grid, threads >>>(Src,Dst, (int) DstStride, (int) Size.height);
 	
 
 	//Copy image block to host

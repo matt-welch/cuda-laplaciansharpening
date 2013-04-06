@@ -4,7 +4,8 @@
 
 #include "Common.h"
 
-
+//#define SCALEOUTPUT
+#define OUTPUT
 
 //include Kernels
 
@@ -46,9 +47,19 @@ void WrapperCUDA_pixME(byte *ImgSrc, byte *ImgDst, int Stride, ROI Size)
 	dim3 threads(BLOCK_SIZE, BLOCK_SIZE);
 	dim3 grid(Size.width / BLOCK_SIZE, Size.height / BLOCK_SIZE);
         
-
+	// TODO: the algorithm should be as follows: 
+	// (1) find the edges with the laplacian kernel = dI
+	// (2) baseline correct and scale the laplacian "edges" image to 0,255 =  dI'
+	// (3) subtract the corrected edges from the image -- I' = I-dI'
+	// (4) correct and scale image = I-sharpened
 	//execute CUDA kernel 
 	CUDAkernel_Laplacian<<< grid, threads >>>(Src,Dst, (int) DstStride, (int) Size.height);
+
+//	CUDAkernel_getLimits<<< grid, threads >>>(Dst, (int) DstStride, (int*) max, (int*) min);
+	
+	
+	// find the minimum intensity in the image	
+	/* TODO: this would be a good place to do the scaling and baseline correction */
 	
 
 	//Copy image block to host
@@ -66,14 +77,9 @@ void WrapperCUDA_pixME(byte *ImgSrc, byte *ImgDst, int Stride, ROI Size)
 
 }
 
-
-
-
-/**
-**************************************************************************
+/**************************************************************************
 *  Program entry point
 */
-
 
 int main(int argc, char** argv)
 {
@@ -92,6 +98,10 @@ int main(int argc, char** argv)
 	int res = PreLoadBmp(pSampleImageFpath, &ImgWidth, &ImgHeight);
 	ImgSize.width = ImgWidth;
 	ImgSize.height = ImgHeight;
+#ifdef SCALEOUTPUT
+	int i, j, index;
+	byte min=0, max=0, range, pixel, value;
+#endif
 
 	//CONSOLE INFORMATION: saying hello to user
 	printf("CUDA Image Sharpning \n");
@@ -135,14 +145,48 @@ int main(int argc, char** argv)
         printf("Success\nRunning CUDA 1 (GPU) version... ");
 
 	WrapperCUDA_pixME(ImgSrc, ImgDstCUDA1, ImgStride, ImgSize);
-		
+
 /*********************************************************************************/
 
+#ifdef DEBUG
+	printf("ImgWidth,%d, ImgHeight,%d\n", ImgWidth, ImgHeight);
+#endif
+#ifdef SCALEOUTPUT
+	/* determine min and max of image - should be with a kernel */
+	for(i = 0; i < ImgWidth - 1; i++){
+		for (j = 0; j < ImgHeight - 1; j++) {
 
+			pixel = ImgDstCUDA1[i*ImgWidth + j]; /* get pixel */
 
+			if(pixel < min)
+				min = pixel; 		
+			else if(pixel > max)
+				max = pixel; 		
+		}
+	}
+	/* baseline correct and scale image - should be with a kernel*/
+	range = max - min;
+	for(i = 0; i < ImgWidth - 1; i++) {
+		for (j = 0; j < ImgHeight - 1; j++) {
+			index = i * ImgWidth + j;
+#ifdef DEBUG
+	printf("index,%d\n",index);
+#endif
+			pixel = ImgDstCUDA1[index];
+			value =  (pixel - min) / (range) * 255;
+#ifdef VERBOSE
+			printf("old,%d, new,%d, range,%d\n",pixel,value,range);
+#endif
+			ImgDstCUDA1[index] = value;
+		}
+	}
+#endif
+
+#ifdef OUTPUT
 	//dump result of CUDA 1 processing
 	printf("Success\nDumping result to %s... ", SampleImageFnameResCUDA1);
 	DumpBmpAsGray(SampleImageFnameResCUDA1, ImgDstCUDA1, ImgStride, ImgSize);
+#endif /* output */
 
 	//print speed info
 	printf("Success\n");

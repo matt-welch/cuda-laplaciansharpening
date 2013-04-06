@@ -13,7 +13,6 @@
 #include "Common.h"
 #define LAPLACIAN
 #define COLLECTNEIGHBORS
-#define DEBUG
 
 __shared__ float CurBlockLocal1[BLOCK_SIZE2];
 __shared__ float TargetBlockLocal2[BLOCK_SIZE2];
@@ -32,6 +31,11 @@ __device__ void putPixVal( float* ImgDest,int ImgWidth,int x,int y, float pixVal
 	ImgDest[y*ImgWidth+x] = pixVal;
 	return ;
 }
+
+/* min and max finding kernel */
+//	CUDAkernel_getLimits<<< grid, threads >>>(Dst, (int) DstStride, (int*) max, (int*) min);
+
+
 
 /* laplacian sharpening kernel */
 __global__ void CUDAkernel_Laplacian(float *Src,float *Dst, int ImgWidth, int ImgHeight)
@@ -52,7 +56,7 @@ __global__ void CUDAkernel_Laplacian(float *Src,float *Dst, int ImgWidth, int Im
 	const int X = bx * BLOCK_SIZE + tx;
 	const int Y = by * BLOCK_SIZE + ty;
 
-#ifdef DEBUG
+#ifdef VERBOSE
 	// messaging
 	char* state = "new";
 #endif
@@ -108,7 +112,7 @@ __global__ void CUDAkernel_Laplacian(float *Src,float *Dst, int ImgWidth, int Im
 #endif
 	}else{ /* pixel on a border - no sharpening */
 		newPixel = readPixVal(Src, ImgWidth, X, Y);
-#ifdef DEBUG
+#ifdef VERBOSE
 		state = "old";
 #endif
 	}

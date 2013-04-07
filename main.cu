@@ -4,7 +4,9 @@
 
 #include "Common.h"
 
-//#define SCALEOUTPUT
+#define SCALEOUTPUT
+	#define GETLIMITS
+		#define SCALE
 #define OUTPUT
 
 //include Kernels
@@ -99,7 +101,7 @@ int main(int argc, char** argv)
 	ImgSize.width = ImgWidth;
 	ImgSize.height = ImgHeight;
 #ifdef SCALEOUTPUT
-	int i, j, index;
+	int i, j, index, numPixels;
 	byte min=0, max=0, range, pixel, value;
 #endif
 
@@ -152,35 +154,36 @@ int main(int argc, char** argv)
 	printf("ImgWidth,%d, ImgHeight,%d\n", ImgWidth, ImgHeight);
 #endif
 #ifdef SCALEOUTPUT
+#ifdef GETLIMITS
+	numPixels = ImgWidth * ImgHeight;
 	/* determine min and max of image - should be with a kernel */
-	for(i = 0; i < ImgWidth - 1; i++){
-		for (j = 0; j < ImgHeight - 1; j++) {
+	for(i = 0; i < numPixels; i++){
+		pixel = ImgDstCUDA1[i]; /* get pixel */
 
-			pixel = ImgDstCUDA1[i*ImgWidth + j]; /* get pixel */
-
-			if(pixel < min)
-				min = pixel; 		
-			else if(pixel > max)
-				max = pixel; 		
-		}
+		if(pixel < min)
+			min = pixel; 		
+		else if(pixel > max)
+			max = pixel; 		
 	}
+	printf("\nMax,%d  ,Min,%d\n",max,min);
+#ifdef SCALE
+	
 	/* baseline correct and scale image - should be with a kernel*/
 	range = max - min;
-	for(i = 0; i < ImgWidth - 1; i++) {
-		for (j = 0; j < ImgHeight - 1; j++) {
-			index = i * ImgWidth + j;
+	for(index = 0; index < numPixels; index++){
 #ifdef DEBUG
-	printf("index,%d\n",index);
+		printf("index,%d\n",index);
 #endif
-			pixel = ImgDstCUDA1[index];
-			value =  (pixel - min) / (range) * 255;
+		pixel = ImgDstCUDA1[index];
+		value =  (pixel - min) * 255 / max;
 #ifdef VERBOSE
-			printf("old,%d, new,%d, range,%d\n",pixel,value,range);
+		printf("old,%d, new,%d, range,%d\n",pixel,value,range);
 #endif
-			ImgDstCUDA1[index] = value;
-		}
+		ImgDstCUDA1[index] = value;
 	}
-#endif
+#endif /* SCALE */
+#endif /* GETLIMITS */
+#endif /* SCALEOUTPUT */
 
 #ifdef OUTPUT
 	//dump result of CUDA 1 processing

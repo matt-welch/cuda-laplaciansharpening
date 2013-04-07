@@ -25,7 +25,7 @@ debugger: debug
 	gdb ./laplacian
 
 tidy: clean
-	rm -f *.*~ *~ laplacian_frame1.bmp
+	rm -f *.*~ *~ *.swp laplacian_frame1.bmp
 
 run: laplacian
 	time ./laplacian
